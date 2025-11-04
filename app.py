@@ -5,9 +5,6 @@ from io import BytesIO
 from openpyxl import Workbook
 from openpyxl.styles import Font, Border, Side, Alignment, PatternFill
 
-# openpyxl에서 인쇄 방향 상수를 직접 import
-# from openpyxl.worksheet.page import PageSetup # 주석 처리하고 아래 문자열 사용
-
 st.set_page_config(page_title="자동 결석 신고서 생성기 (Excel)", layout="centered")
 st.title("📝 자동 결석 신고서 생성 (Excel 형식)")
 st.caption("A4 용지 한 페이지에 인쇄되도록 최적화된 Excel 파일을 생성합니다.")
@@ -21,6 +18,7 @@ STUDENTS = {
     "10101": {"학년": 1, "반": 1, "번호": 1, "이름": "김철수"},
     "10102": {"학년": 1, "반": 1, "번호": 2, "이름": "이영희"},
     "20315": {"학년": 2, "반": 3, "번호": 15, "이름": "박민재"},
+    # 실제 학생 명단으로 대체해야 합니다 (예: Google Sheet에서 불러오기)
 }
 
 st.subheader("1. 결석 학생 정보 입력")
@@ -66,12 +64,22 @@ if selected_key:
         has_opinion = st.checkbox("보건결석 학부모 의견서 첨부 (보건 결석인 경우)", value=(absence_type == '인정'))
         
     etc_doc_val = st.text_input("기타 첨부 서류 명칭", "")
+
+    # 보호자 의견서 입력 필드 (2페이지 반영용)
+    if absence_type == '인정':
+        st.subheader("4. 보건 결석 - 보호자 의견서")
+        symptom = st.text_area("증상", "생리통 및 복통으로 인한 컨디션 난조", height=50)
+        parent_opinion = st.text_area("부모님 의견 (자필 작성)", "월 1회 보건 결석임을 확인합니다.", height=50)
+    else:
+        symptom = ""
+        parent_opinion = ""
+
     
     # ----------------------------------------------------
     # B. Excel 생성 및 PDF 양식 서식 적용 함수
     # ----------------------------------------------------
     
-    def create_excel_report(data, has_diagnosis, has_opinion, etc_doc_val):
+    def create_excel_report(data, has_diagnosis, has_opinion, etc_doc_val, symptom, parent_opinion):
         wb = Workbook()
         ws = wb.active
         ws.title = "결석신고서"
@@ -83,12 +91,12 @@ if selected_key:
         title_font = Font(size=14, bold=True)
         header_font = Font(bold=True)
         
-        # A4 너비에 맞게 E열까지만 사용하도록 열 너비 조정
-        ws.column_dimensions['A'].width = 12
-        ws.column_dimensions['B'].width = 12
-        ws.column_dimensions['C'].width = 15
-        ws.column_dimensions['D'].width = 15
-        ws.column_dimensions['E'].width = 15
+        # 1. A, B열 너비 축소 / C, D, E열 확대 (요청 1 반영)
+        ws.column_dimensions['A'].width = 10
+        ws.column_dimensions['B'].width = 10
+        ws.column_dimensions['C'].width = 18
+        ws.column_dimensions['D'].width = 18
+        ws.column_dimensions['E'].width = 18
         
         # --- 1. 문서 제목 및 안내 ---
         current_row = 1
@@ -209,11 +217,12 @@ if selected_key:
         ws[f'A{current_row}'].alignment = Alignment(horizontal='left', wrap_text=True)
         ws.row_dimensions[current_row].height = 15
 
+        # 요청 3: 보호자 연서 문구 행 높이 조정
         current_row += 1
         ws.merge_cells(f'A{current_row}:E{current_row}')
         ws[f'A{current_row}'] = f"위와 같이 결석하고자 하였기에 보호자 연서로 신고합니다. \n\n {date.today().strftime('2025년 %m월 %d일')}"
         ws[f'A{current_row}'].alignment = Alignment(horizontal='right', vertical='bottom', wrap_text=True)
-        ws.row_dimensions[current_row].height = 40
+        ws.row_dimensions[current_row].height = 40 # 행 높이 충분히 높임
         
         current_row += 1
         ws.merge_cells(f'A{current_row}:C{current_row}')
@@ -264,7 +273,7 @@ if selected_key:
         # --- 9. 교사 확인 텍스트 및 날짜 ---
         current_row += 1
         ws.merge_cells(f'A{current_row}:E{current_row}')
-        ws[f'A{current_row}'] = "위의 신고 내용이 사실과 같음을 확인합니다." # 누락된 텍스트 추가
+        ws[f'A{current_row}'] = "위의 신고 내용이 사실과 같음을 확인합니다." 
         ws[f'A{current_row}'].alignment = Alignment(horizontal='left', vertical='center')
         ws.row_dimensions[current_row].height = 20
 
@@ -278,11 +287,10 @@ if selected_key:
         # --- 10. 결재 라인 ---
         current_row += 1
         
-        # 결재 라인 헤더
-        ws.merge_cells(f'A{current_row}:B{current_row}')
-        ws[f'A{current_row}'] = "학급 담임"
-        ws[f'A{current_row}'].border = thin_border
-        ws[f'A{current_row}'].alignment = center_align
+        # 결재 라인 헤더 (요청 2: 담임교사 B열만 차지)
+        ws[f'B{current_row}'] = "학급 담임"
+        ws[f'B{current_row}'].border = thin_border
+        ws[f'B{current_row}'].alignment = center_align
         
         ws[f'C{current_row}'] = "출결 담당"
         ws[f'C{current_row}'].border = thin_border
@@ -298,7 +306,7 @@ if selected_key:
         
         # 최종 서명/결재 빈칸 (공간 확보)
         current_row += 1
-        for col in ['A', 'B', 'C', 'D', 'E']:
+        for col in ['B', 'C', 'D', 'E']: # B열부터 시작
             ws[f'{col}{current_row}'].border = thin_border
             ws.row_dimensions[current_row].height = 30
         
@@ -309,10 +317,15 @@ if selected_key:
         ws[f'A{current_row}'].alignment = Alignment(horizontal='right', vertical='center')
         ws.row_dimensions[current_row].height = 20
         
-        # --- 11. 2페이지 내용 (규정 상세) 추가 ---
+        
+        # ----------------------------------------------------------------------------------
+        # --- 11. 2페이지 내용 (규정 상세 및 보호자 의견서) 추가 --- (요청 4 반영)
+        # ----------------------------------------------------------------------------------
+        
+        # 11-1. 규정 상세
         current_row += 2
         ws.merge_cells(f'A{current_row}:E{current_row}')
-        ws[f'A{current_row}'] = "※ 결석 종류별 증빙자료 관련 규정 안내 (PDF 2페이지 내용)"
+        ws[f'A{current_row}'] = "※ 결석 종류별 증빙자료 관련 규정 안내"
         ws[f'A{current_row}'].font = Font(size=10, bold=True)
         ws[f'A{current_row}'].fill = PatternFill(start_color="EEEEEE", end_color="EEEEEE", fill_type="solid")
         ws[f'A{current_row}'].alignment = left_align
@@ -333,12 +346,51 @@ if selected_key:
         ws[f'A{current_row}'].border = thin_border
         ws.row_dimensions[current_row].height = 80
         
+        # 11-2. 보호자 의견서
+        current_row += 1
+        ws.merge_cells(f'A{current_row}:E{current_row}')
+        ws[f'A{current_row}'] = "보호자 의견서 (보건결석인 경우만 작성)"
+        ws[f'A{current_row}'].font = Font(size=10, bold=True)
+        ws[f'A{current_row}'].fill = PatternFill(start_color="CCCCFF", end_color="CCCCFF", fill_type="solid")
+        ws[f'A{current_row}'].alignment = left_align
+        ws.row_dimensions[current_row].height = 20
+
+        # 증상/의견 테이블 시작
+        current_row += 1
+        ws.merge_cells(f'A{current_row}:B{current_row}')
+        ws[f'A{current_row}'] = "증상"
+        ws[f'A{current_row}'].border = thin_border
+        ws[f'A{current_row}'].alignment = center_align
+
+        ws.merge_cells(f'C{current_row}:E{current_row}')
+        ws[f'C{current_row}'] = symptom if data['결석_종류'] == '인정' else "(해당 없음)"
+        ws[f'C{current_row}'].border = thin_border
+        ws[f'C{current_row}'].alignment = left_align
+        ws.row_dimensions[current_row].height = 30
+        
+        current_row += 1
+        ws.merge_cells(f'A{current_row}:B{current_row}')
+        ws[f'A{current_row}'] = "부모님 의견"
+        ws[f'A{current_row}'].border = thin_border
+        ws[f'A{current_row}'].alignment = center_align
+
+        ws.merge_cells(f'C{current_row}:E{current_row}')
+        ws[f'C{current_row}'] = parent_opinion if data['결석_종류'] == '인정' else "(해당 없음)"
+        ws[f'C{current_row}'].border = thin_border
+        ws[f'C{current_row}'].alignment = Alignment(horizontal='left', vertical='top', wrap_text=True)
+        ws.row_dimensions[current_row].height = 50
+        
+        # 최종 확인 문구
+        current_row += 1
+        ws.merge_cells(f'A{current_row}:E{current_row}')
+        ws[f'A{current_row}'] = f"학생과의 관계: (      ) 보호자 성명: (서명 또는 인)"
+        ws[f'A{current_row}'].alignment = Alignment(horizontal='right', vertical='bottom')
+        ws.row_dimensions[current_row].height = 30
+
         # 인쇄 영역 설정 (A4 1페이지에 맞춤)
         ws.page_setup.fitToPages = True
-        ws.page_setup.fitToWidth = 1 # 너비를 1페이지에 맞춤
-        ws.page_setup.fitToHeight = 0 # 높이는 맞추지 않음 (1페이지를 넘을 경우 다음 페이지로 넘김)
-        
-        # 🌟 오류 수정: 상수 대신 문자열 'portrait' 사용
+        ws.page_setup.fitToWidth = 1 
+        ws.page_setup.fitToHeight = 0 
         ws.page_setup.orientation = 'portrait' 
         
         ws.print_area = f'A1:E{current_row}'
@@ -359,10 +411,10 @@ if selected_key:
 
     st.markdown("---")
     if st.button("결석 신고서 생성 및 다운로드 (Excel)", use_container_width=True):
-        st.subheader("4. 결과 확인")
+        st.subheader("5. 결과 확인")
         
         # Excel 문서 생성
-        workbook = create_excel_report(final_data, has_diagnosis, has_opinion, etc_doc_val)
+        workbook = create_excel_report(final_data, has_diagnosis, has_opinion, etc_doc_val, symptom, parent_opinion)
         
         # BytesIO를 사용하여 메모리에 문서를 저장하고 Streamlit 다운로드에 사용
         excel_buffer = BytesIO()
