@@ -10,7 +10,7 @@ st.title("📝 자동 결석 신고서 생성 (Excel 형식)")
 st.caption("PDF 원본 양식에 최대한 유사하게 구조화된 Excel 파일을 생성합니다.")
 
 # ----------------------------------------------------
-# A. 데이터 입력값 설정 (이전과 동일)
+# A. 데이터 입력값 설정
 # ----------------------------------------------------
 
 # 예시 학생 명단 (선택 박스용)
@@ -18,6 +18,7 @@ STUDENTS = {
     "10101": {"학년": 1, "반": 1, "번호": 1, "이름": "김철수"},
     "10102": {"학년": 1, "반": 1, "번호": 2, "이름": "이영희"},
     "20315": {"학년": 2, "반": 3, "번호": 15, "이름": "박민재"},
+    # 실제 학생 명단으로 대체해야 합니다 (예: Google Sheet에서 불러오기)
 }
 
 st.subheader("1. 결석 학생 정보 입력")
@@ -55,7 +56,7 @@ if selected_key:
         options=['질병', '인정', '기타'],
         index=0
     )
-    # PDF 양식의 첨부 서류 체크박스 반영 (3일 이상인 경우 첨부, 보건 결석 등)
+    
     col_chk1, col_chk2 = st.columns(2)
     with col_chk1:
         has_diagnosis = st.checkbox("진단서/진료확인서 첨부 (3일 이상인 경우)", value=(total_days >= 3 and absence_type == '질병'))
@@ -96,7 +97,7 @@ if selected_key:
         ws[f'A{current_row}'].alignment = center_align
         ws.row_dimensions[current_row].height = 25
         
-        # --- 2. 학생 정보 (A4 용지 칸처럼 병합) ---
+        # --- 2. 학생 정보 ---
         current_row += 2
         
         ws.merge_cells(f'A{current_row}:B{current_row}')
@@ -108,7 +109,7 @@ if selected_key:
         ws.merge_cells(f'C{current_row}:F{current_row}')
         ws[f'C{current_row}'] = f"{data['학년']}학년 {data['반']}반 {data['번호']}번"
         ws[f'C{current_row}'].alignment = left_align
-        ws[f'C{C{current_row}'].border = thin_border
+        ws[f'C{current_row}'].border = thin_border
         
         # --- 3. 기간 ---
         current_row += 1
@@ -149,7 +150,7 @@ if selected_key:
         ws.merge_cells(f'C{current_row}:F{current_row}')
         ws[f'C{current_row}'] = data['사유']
         ws[f'C{current_row}'].alignment = left_align
-        ws[f'C{C{current_row}'].border = thin_border
+        ws[f'C{current_row}'].border = thin_border
         ws.row_dimensions[current_row].height = 60 # 사유 칸 넓게
         
         # --- 6. 붙임 서류 ---
@@ -163,8 +164,12 @@ if selected_key:
         doc_list = []
         doc_list.append(f"[{'X' if has_diagnosis else ' '}] 진단서 또는 진료 확인서 (3일 이상인 경우)")
         doc_list.append(f"[{'X' if has_opinion else ' '}] 보건결석 학부모 의견서")
-        doc_list.append(f"[{'X' if not (has_diagnosis or has_opinion or etc_doc_val) else ' '}] 없음")
-        if etc_doc_val:
+        
+        # 없음을 체크할지 결정
+        is_none = not (has_diagnosis or has_opinion or etc_doc_val.strip())
+        doc_list.append(f"[{'X' if is_none else ' '}] 없음")
+        
+        if etc_doc_val.strip():
             doc_list.append(f"[{'X'}] 기타 ({etc_doc_val})")
 
         ws.merge_cells(f'C{current_row}:F{current_row}')
@@ -186,7 +191,8 @@ if selected_key:
         ws[f'D{current_row}'] = "보호자 성명: (서명 또는 인)"
         ws[f'A{current_row}'].alignment = left_align
         ws[f'D{current_row}'].alignment = left_align
-
+        ws.row_dimensions[current_row].height = 30
+        
         # --- 8. 담임교사 확인서 (새로운 섹션) ---
         current_row += 2
         ws.merge_cells(f'A{current_row}:F{current_row}')
@@ -230,11 +236,11 @@ if selected_key:
         ws[f'A{current_row}'] = f"위의 신고 내용이 사실과 같음을 확인합니다.  {date.today().strftime('%Y년 %m월 %d일')}"
         ws[f'A{current_row}'].alignment = left_align
 
-        # 결재 라인 헤더
+        # 결재 라인 헤더 (PDF 양식 맞춤)
         current_row += 1
         ws.merge_cells(f'A{current_row}:B{current_row}')
         ws[f'A{current_row}'] = "학급 담임"
-        ws[f'A{C{current_row}'].border = thin_border
+        ws[f'A{current_row}'].border = thin_border
         ws[f'A{current_row}'].alignment = center_align
         
         ws[f'C{current_row}'] = "출결 담당"
@@ -250,16 +256,17 @@ if selected_key:
         ws[f'E{current_row}'].border = thin_border
         ws[f'E{current_row}'].alignment = center_align
         
-        # 최종 서명/결재 빈칸
+        # 최종 서명/결재 빈칸 (공간 확보)
         current_row += 1
-        for col in ['A', 'B', 'C', 'D', 'E', 'F']:
-            if col not in ['B', 'D', 'F']: # 병합된 셀은 건너뜀
-                ws[f'{col}{current_row}'].border = thin_border
-            ws.row_dimensions[current_row].height = 30
+        for col in ['A', 'C', 'D']:
+             ws[f'{col}{current_row}'].border = thin_border
         
-        ws.merge_cells(f'A{current_row}:B{current_row}')
-        ws.merge_cells(f'E{current_row}:F{current_row}')
+        ws.merge_cells(f'A{current_row}:B{current_row}') # 담임
+        ws.merge_cells(f'E{current_row}:F{current_row}') # 교감
         
+        for col in ['A', 'C', 'D', 'E']: # 병합된 영역의 시작 셀에만 높이 적용
+             ws.row_dimensions[current_row].height = 30
+
         # 학교장 귀하
         current_row += 1
         ws.merge_cells(f'A{current_row}:F{current_row}')
@@ -284,8 +291,10 @@ if selected_key:
     if st.button("결석 신고서 생성 및 다운로드 (Excel)", use_container_width=True):
         st.subheader("4. 결과 확인")
         
+        # Excel 문서 생성
         workbook = create_excel_report(final_data, has_diagnosis, has_opinion, etc_doc_val)
         
+        # BytesIO를 사용하여 메모리에 문서를 저장하고 Streamlit 다운로드에 사용
         excel_buffer = BytesIO()
         workbook.save(excel_buffer)
         excel_buffer.seek(0)
