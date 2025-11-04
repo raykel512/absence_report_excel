@@ -5,6 +5,9 @@ from io import BytesIO
 from openpyxl import Workbook
 from openpyxl.styles import Font, Border, Side, Alignment, PatternFill
 
+# openpyxl에서 인쇄 방향 상수를 직접 import
+# from openpyxl.worksheet.page import PageSetup # 주석 처리하고 아래 문자열 사용
+
 st.set_page_config(page_title="자동 결석 신고서 생성기 (Excel)", layout="centered")
 st.title("📝 자동 결석 신고서 생성 (Excel 형식)")
 st.caption("A4 용지 한 페이지에 인쇄되도록 최적화된 Excel 파일을 생성합니다.")
@@ -334,7 +337,10 @@ if selected_key:
         ws.page_setup.fitToPages = True
         ws.page_setup.fitToWidth = 1 # 너비를 1페이지에 맞춤
         ws.page_setup.fitToHeight = 0 # 높이는 맞추지 않음 (1페이지를 넘을 경우 다음 페이지로 넘김)
-        ws.page_setup.orientation = ws.page_setup.ORIENTATION_PORTRAIT
+        
+        # 🌟 오류 수정: 상수 대신 문자열 'portrait' 사용
+        ws.page_setup.orientation = 'portrait' 
+        
         ws.print_area = f'A1:E{current_row}'
 
         return wb
