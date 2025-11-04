@@ -7,7 +7,7 @@ from openpyxl.styles import Font, Border, Side, Alignment, PatternFill
 
 st.set_page_config(page_title="자동 결석 신고서 생성기 (Excel)", layout="centered")
 st.title("📝 자동 결석 신고서 생성 (Excel 형식)")
-st.caption("PDF 원본 양식에 최대한 유사하게 구조화된 Excel 파일을 생성합니다.")
+st.caption("A4 용지 한 페이지에 인쇄되도록 최적화된 Excel 파일을 생성합니다.")
 
 # ----------------------------------------------------
 # A. 데이터 입력값 설정
@@ -18,7 +18,6 @@ STUDENTS = {
     "10101": {"학년": 1, "반": 1, "번호": 1, "이름": "김철수"},
     "10102": {"학년": 1, "반": 1, "번호": 2, "이름": "이영희"},
     "20315": {"학년": 2, "반": 3, "번호": 15, "이름": "박민재"},
-    # 실제 학생 명단으로 대체해야 합니다 (예: Google Sheet에서 불러오기)
 }
 
 st.subheader("1. 결석 학생 정보 입력")
@@ -81,24 +80,36 @@ if selected_key:
         title_font = Font(size=14, bold=True)
         header_font = Font(bold=True)
         
-        # 열 너비 조정 (PDF 양식 칸 맞추기)
-        ws.column_dimensions['A'].width = 15
-        ws.column_dimensions['B'].width = 15
+        # A4 너비에 맞게 E열까지만 사용하도록 열 너비 조정
+        ws.column_dimensions['A'].width = 12
+        ws.column_dimensions['B'].width = 12
         ws.column_dimensions['C'].width = 15
         ws.column_dimensions['D'].width = 15
         ws.column_dimensions['E'].width = 15
-        ws.column_dimensions['F'].width = 15
         
-        # --- 1. 결석 신고서 제목 ---
+        # --- 1. 문서 제목 및 안내 ---
         current_row = 1
-        ws.merge_cells(f'A{current_row}:F{current_row}')
-        ws[f'A{current_row}'] = "결석신고서"
+        ws.merge_cells(f'A{current_row}:E{current_row}')
+        ws[f'A{current_row}'] = "학업성적관리규정 [결석계 서식]"
+        ws[f'A{current_row}'].font = Font(size=10)
+        ws[f'A{current_row}'].alignment = Alignment(horizontal='right')
+        
+        current_row += 1
+        ws.merge_cells(f'A{current_row}:E{current_row}')
+        ws[f'A{current_row}'] = "결 석 신 고 서"
         ws[f'A{current_row}'].font = title_font
         ws[f'A{current_row}'].alignment = center_align
         ws.row_dimensions[current_row].height = 25
         
+        current_row += 1
+        ws.merge_cells(f'A{current_row}:E{current_row}')
+        ws[f'A{current_row}'] = "※ 결석신고서는 결석한 날로부터 3일 이내에 제출하여 학교의 승인을 받아야 합니다."
+        ws[f'A{current_row}'].font = Font(size=9)
+        ws[f'A{current_row}'].alignment = Alignment(horizontal='left', wrap_text=True)
+        ws.row_dimensions[current_row].height = 15
+
         # --- 2. 학생 정보 ---
-        current_row += 2
+        current_row += 1
         
         ws.merge_cells(f'A{current_row}:B{current_row}')
         ws[f'A{current_row}'] = "학생"
@@ -106,7 +117,7 @@ if selected_key:
         ws[f'A{current_row}'].alignment = center_align
         ws[f'A{current_row}'].border = thin_border
         
-        ws.merge_cells(f'C{current_row}:F{current_row}')
+        ws.merge_cells(f'C{current_row}:E{current_row}')
         ws[f'C{current_row}'] = f"{data['학년']}학년 {data['반']}반 {data['번호']}번"
         ws[f'C{current_row}'].alignment = left_align
         ws[f'C{current_row}'].border = thin_border
@@ -119,13 +130,20 @@ if selected_key:
         ws[f'A{current_row}'].alignment = center_align
         ws[f'A{current_row}'].border = thin_border
         
-        period_str = f"{data['시작일'].strftime('%Y년 %m월 %d일')}부터 ~ {data['종료일'].strftime('%Y년 %m월 %d일')}까지 ({data['총_일수']}일간)"
-        ws.merge_cells(f'C{current_row}:F{current_row}')
+        period_str = f"{data['시작일'].strftime('2025년 %m월 %d일')}부터 ~ {data['종료일'].strftime('2025년 %m월 %d일')}까지 ({data['총_일수']}일간)"
+        ws.merge_cells(f'C{current_row}:E{current_row}')
         ws[f'C{current_row}'] = period_str
         ws[f'C{current_row}'].alignment = left_align
         ws[f'C{current_row}'].border = thin_border
         ws.row_dimensions[current_row].height = 20
         
+        current_row += 1
+        ws.merge_cells(f'A{current_row}:E{current_row}')
+        ws[f'A{current_row}'] = "※ 결석 기간 중 공휴일 또는 학교 휴무일은 결석일 수에 포함하지 않습니다."
+        ws[f'A{current_row}'].font = Font(size=9)
+        ws[f'A{current_row}'].alignment = Alignment(horizontal='left', wrap_text=True)
+        ws.row_dimensions[current_row].height = 15
+
         # --- 4. 성명 ---
         current_row += 1
         ws.merge_cells(f'A{current_row}:B{current_row}')
@@ -134,7 +152,7 @@ if selected_key:
         ws[f'A{current_row}'].alignment = center_align
         ws[f'A{current_row}'].border = thin_border
         
-        ws.merge_cells(f'C{current_row}:F{current_row}')
+        ws.merge_cells(f'C{current_row}:E{current_row}')
         ws[f'C{current_row}'] = data['이름']
         ws[f'C{current_row}'].alignment = left_align
         ws[f'C{current_row}'].border = thin_border
@@ -147,11 +165,11 @@ if selected_key:
         ws[f'A{current_row}'].alignment = center_align
         ws[f'A{current_row}'].border = thin_border
         
-        ws.merge_cells(f'C{current_row}:F{current_row}')
+        ws.merge_cells(f'C{current_row}:E{current_row}')
         ws[f'C{current_row}'] = data['사유']
         ws[f'C{current_row}'].alignment = left_align
         ws[f'C{current_row}'].border = thin_border
-        ws.row_dimensions[current_row].height = 60 # 사유 칸 넓게
+        ws.row_dimensions[current_row].height = 60 
         
         # --- 6. 붙임 서류 ---
         current_row += 1
@@ -162,32 +180,42 @@ if selected_key:
         ws[f'A{current_row}'].border = thin_border
         
         doc_list = []
-        doc_list.append(f"[{'X' if has_diagnosis else ' '}] 진단서 또는 진료 확인서 (3일 이상인 경우)")
+        doc_list.append(f"[{'X' if has_diagnosis else ' '}] 진단서 또는 진료 확인서 (3일 이상인 경우 꼭 첨부)")
+        doc_list.append(f"[] 병원처방전 또는 약봉투") 
         doc_list.append(f"[{'X' if has_opinion else ' '}] 보건결석 학부모 의견서")
         
-        # 없음을 체크할지 결정
         is_none = not (has_diagnosis or has_opinion or etc_doc_val.strip())
         doc_list.append(f"[{'X' if is_none else ' '}] 없음")
         
         if etc_doc_val.strip():
             doc_list.append(f"[{'X'}] 기타 ({etc_doc_val})")
+        else:
+             doc_list.append(f"[] 기타 ()")
 
-        ws.merge_cells(f'C{current_row}:F{current_row}')
+        ws.merge_cells(f'C{current_row}:E{current_row}')
         ws[f'C{current_row}'] = '\n'.join(doc_list)
         ws[f'C{current_row}'].alignment = left_align
         ws[f'C{current_row}'].border = thin_border
-        ws.row_dimensions[current_row].height = 60
+        ws.row_dimensions[current_row].height = 70
         
-        # --- 7. 보호자 연서 (서명) ---
-        current_row += 2
-        ws.merge_cells(f'A{current_row}:F{current_row}')
-        ws[f'A{current_row}'] = f"위와 같이 결석하고자 하였기에 보호자 연서로 신고합니다.  {date.today().strftime('%Y년 %m월 %d일')}"
-        ws[f'A{current_row}'].alignment = left_align
+        # --- 7. 유의사항 및 보호자 연서 ---
+        current_row += 1
+        ws.merge_cells(f'A{current_row}:E{current_row}')
+        ws[f'A{current_row}'] = "※ 규정된 증빙서류를 첨부하지 않으면 '미인정(무단)' 결석 처리됩니다."
+        ws[f'A{current_row}'].font = Font(size=9)
+        ws[f'A{current_row}'].alignment = Alignment(horizontal='left', wrap_text=True)
+        ws.row_dimensions[current_row].height = 15
+
+        current_row += 1
+        ws.merge_cells(f'A{current_row}:E{current_row}')
+        ws[f'A{current_row}'] = f"위와 같이 결석하고자 하였기에 보호자 연서로 신고합니다. \n\n {date.today().strftime('2025년 %m월 %d일')}"
+        ws[f'A{current_row}'].alignment = Alignment(horizontal='right', vertical='bottom', wrap_text=True)
+        ws.row_dimensions[current_row].height = 40
         
         current_row += 1
         ws.merge_cells(f'A{current_row}:C{current_row}')
-        ws[f'A{current_row}'] = f"학생 성명: {data['이름']}"
-        ws.merge_cells(f'D{current_row}:F{current_row}')
+        ws[f'A{current_row}'] = f"학생 성명: {data['이름']} (서명 또는 인)"
+        ws.merge_cells(f'D{current_row}:E{current_row}')
         ws[f'D{current_row}'] = "보호자 성명: (서명 또는 인)"
         ws[f'A{current_row}'].alignment = left_align
         ws[f'D{current_row}'].alignment = left_align
@@ -195,7 +223,7 @@ if selected_key:
         
         # --- 8. 담임교사 확인서 (새로운 섹션) ---
         current_row += 2
-        ws.merge_cells(f'A{current_row}:F{current_row}')
+        ws.merge_cells(f'A{current_row}:E{current_row}')
         ws[f'A{current_row}'] = "담임교사 확인서"
         ws[f'A{current_row}'].font = title_font
         ws[f'A{current_row}'].alignment = center_align
@@ -212,12 +240,12 @@ if selected_key:
         chk_인정 = 'X' if data['결석_종류'] == '인정' else ' '
         chk_기타 = 'X' if data['결석_종류'] == '기타' else ' '
         
-        ws.merge_cells(f'C{current_row}:F{current_row}')
+        ws.merge_cells(f'C{current_row}:E{current_row}')
         ws[f'C{current_row}'] = f"[{chk_질병}] 질병  [{chk_인정}] 인정  [{chk_기타}] 기타"
         ws[f'C{current_row}'].alignment = left_align
         ws[f'C{current_row}'].border = thin_border
         
-        # 확인 방법 (간소화)
+        # 확인 방법 
         current_row += 1
         ws.merge_cells(f'A{current_row}:B{current_row}')
         ws[f'A{current_row}'] = "확인 방법"
@@ -225,19 +253,29 @@ if selected_key:
         ws[f'A{current_row}'].alignment = center_align
         ws[f'A{current_row}'].border = thin_border
         
-        ws.merge_cells(f'C{current_row}:F{current_row}')
+        ws.merge_cells(f'C{current_row}:E{current_row}')
         ws[f'C{current_row}'] = "[X] 제출된 증빙서류로 확인"
         ws[f'C{current_row}'].alignment = left_align
         ws[f'C{current_row}'].border = thin_border
         
-        # --- 9. 서명 및 결재 라인 ---
-        current_row += 2
-        ws.merge_cells(f'A{current_row}:F{current_row}')
-        ws[f'A{current_row}'] = f"위의 신고 내용이 사실과 같음을 확인합니다.  {date.today().strftime('%Y년 %m월 %d일')}"
-        ws[f'A{current_row}'].alignment = left_align
-
-        # 결재 라인 헤더 (PDF 양식 맞춤)
+        # --- 9. 교사 확인 텍스트 및 날짜 ---
         current_row += 1
+        ws.merge_cells(f'A{current_row}:E{current_row}')
+        ws[f'A{current_row}'] = "위의 신고 내용이 사실과 같음을 확인합니다." # 누락된 텍스트 추가
+        ws[f'A{current_row}'].alignment = Alignment(horizontal='left', vertical='center')
+        ws.row_dimensions[current_row].height = 20
+
+        current_row += 1
+        ws.merge_cells(f'A{current_row}:E{current_row}')
+        ws[f'A{current_row}'] = f"{date.today().strftime('2025년 %m월 %d일')}"
+        ws[f'A{current_row}'].alignment = Alignment(horizontal='right', vertical='bottom')
+        ws.row_dimensions[current_row].height = 25
+
+
+        # --- 10. 결재 라인 ---
+        current_row += 1
+        
+        # 결재 라인 헤더
         ws.merge_cells(f'A{current_row}:B{current_row}')
         ws[f'A{current_row}'] = "학급 담임"
         ws[f'A{current_row}'].border = thin_border
@@ -251,32 +289,58 @@ if selected_key:
         ws[f'D{current_row}'].border = thin_border
         ws[f'D{current_row}'].alignment = center_align
         
-        ws.merge_cells(f'E{current_row}:F{current_row}')
         ws[f'E{current_row}'] = "교감"
         ws[f'E{current_row}'].border = thin_border
         ws[f'E{current_row}'].alignment = center_align
         
         # 최종 서명/결재 빈칸 (공간 확보)
         current_row += 1
-        for col in ['A', 'C', 'D']:
-             ws[f'{col}{current_row}'].border = thin_border
+        for col in ['A', 'B', 'C', 'D', 'E']:
+            ws[f'{col}{current_row}'].border = thin_border
+            ws.row_dimensions[current_row].height = 30
         
-        ws.merge_cells(f'A{current_row}:B{current_row}') # 담임
-        ws.merge_cells(f'E{current_row}:F{current_row}') # 교감
-        
-        for col in ['A', 'C', 'D', 'E']: # 병합된 영역의 시작 셀에만 높이 적용
-             ws.row_dimensions[current_row].height = 30
-
         # 학교장 귀하
         current_row += 1
-        ws.merge_cells(f'A{current_row}:F{current_row}')
+        ws.merge_cells(f'A{current_row}:E{current_row}')
         ws[f'A{current_row}'] = "대동세무고등학교장 귀하"
         ws[f'A{current_row}'].alignment = Alignment(horizontal='right', vertical='center')
+        ws.row_dimensions[current_row].height = 20
+        
+        # --- 11. 2페이지 내용 (규정 상세) 추가 ---
+        current_row += 2
+        ws.merge_cells(f'A{current_row}:E{current_row}')
+        ws[f'A{current_row}'] = "※ 결석 종류별 증빙자료 관련 규정 안내 (PDF 2페이지 내용)"
+        ws[f'A{current_row}'].font = Font(size=10, bold=True)
+        ws[f'A{current_row}'].fill = PatternFill(start_color="EEEEEE", end_color="EEEEEE", fill_type="solid")
+        ws[f'A{current_row}'].alignment = left_align
+        ws.row_dimensions[current_row].height = 20
+        
+        current_row += 1
+        ws.merge_cells(f'A{current_row}:E{current_row}')
+        rule_text = (
+            "1. 질병결석 2일 이내: 결석신고서와 담임교사 확인서\n"
+            "2. 질병결석 3일 이상: 결석신고서, 담임교사 확인서 및 ① 의사의 진단서, ② 의견서(진료확인서 등) 중 택1\n"
+            "3. 보건결석: 의사소견서 또는 학부모 의견서 첨부 (월 1일만 인정)\n"
+            "4. 그 외 인정 및 기타결석: 사유를 인정할 수 있는 증빙서류 첨부\n"
+            "5. 고사기간 중의 질병결석: 의사의 진단서 반드시 첨부"
+        )
+        ws[f'A{current_row}'] = rule_text
+        ws[f'A{current_row}'].font = Font(size=9)
+        ws[f'A{current_row}'].alignment = Alignment(horizontal='left', vertical='top', wrap_text=True)
+        ws[f'A{current_row}'].border = thin_border
+        ws.row_dimensions[current_row].height = 80
+        
+        # 인쇄 영역 설정 (A4 1페이지에 맞춤)
+        ws.page_setup.fitToPages = True
+        ws.page_setup.fitToWidth = 1 # 너비를 1페이지에 맞춤
+        ws.page_setup.fitToHeight = 0 # 높이는 맞추지 않음 (1페이지를 넘을 경우 다음 페이지로 넘김)
+        ws.page_setup.orientation = ws.page_setup.ORIENTATION_PORTRAIT
+        ws.print_area = f'A1:E{current_row}'
 
         return wb
 
     # ----------------------------------------------------
-    # C. 파일 생성 및 다운로드
+    # C. 파일 생성 및 다운로드 (이전과 동일)
     # ----------------------------------------------------
     
     # 최종 대체 데이터 조합
